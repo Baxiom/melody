@@ -24,11 +24,12 @@ from pygame.locals import (
     K_LEFT,
     K_RIGHT,
     K_SPACE,
+    K_BACKSPACE,
 )
 STEP_COLOUR = (200, 150, 120)
 SCROLL_COLOUR = (0, 255, 240)
 SCROLL_PLAYING = (255, 100, 0)
-BLACKISH = (20, 20, 20)
+BLACKISH = (80, 90, 70)
 
 file_list = []
 
@@ -65,7 +66,7 @@ def display(screen, rhythm, stored, index):
             x = 0
             y += 10 * 19
         pg.draw.rect(screen, SCROLL_PLAYING if i == index_test else SCROLL_COLOUR, (x, y - 10*note, length, 10))
-        pg.draw.rect(screen, SCROLL_PLAYING if i == index_test else BLACKISH, (x, y - 10 * note, length, 10), 1)
+        pg.draw.rect(screen, BLACKISH, (x, y - 10 * note, length, 10), 1)
         i += 1
         x += length
 
@@ -149,6 +150,12 @@ def main():
                     pg.time.set_timer(ADVANCE_EVENT, 20)
                     index = 0
                     # step_input = False
+                elif event.key == K_BACKSPACE:
+                    if step_input and len(stored) > 0:
+                        print(f'Deleting, len(stored) = {len(stored)}')
+                        stored.pop()
+                        # index -= 1
+                        print(f'Deleted, len(stored) = {len(stored)}')
                 elif event.key == K_SPACE:
                     step_input = not step_input
             elif event.type == ADVANCE_EVENT:
