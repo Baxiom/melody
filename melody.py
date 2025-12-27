@@ -8,6 +8,7 @@ from colorsys import rgb_to_yiq
 from pygame import freetype, SurfaceType
 from pygame._sdl2.video import Window
 import player
+import xml_interface
 from pathlib import Path
 
 # from geopy.geocoders import Nominatim
@@ -158,6 +159,8 @@ def main():
                         print(f'Deleted, len(stored) = {len(stored)}')
                 elif event.key == K_SPACE:
                     step_input = not step_input
+                elif event.unicode == 'S':
+                    xml_interface.save(rhythm, stored)
             elif event.type == ADVANCE_EVENT:
                 if -1 < index < len(stored):
                     print(f'In Advance: {stored[index]}, from index: {index}')
