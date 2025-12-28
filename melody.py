@@ -159,8 +159,12 @@ def main():
                         print(f'Deleted, len(stored) = {len(stored)}')
                 elif event.key == K_SPACE:
                     step_input = not step_input
+                elif event.unicode == 'X':
+                    xml_interface.export(rhythm, stored)
                 elif event.unicode == 'S':
                     xml_interface.save(rhythm, stored)
+                elif event.unicode == 'L':
+                    rhythm, stored = xml_interface.load()
             elif event.type == ADVANCE_EVENT:
                 if -1 < index < len(stored):
                     print(f'In Advance: {stored[index]}, from index: {index}')

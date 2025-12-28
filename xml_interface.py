@@ -1,4 +1,8 @@
 from music21 import stream, note, pitch, instrument
+import json
+import os
+# import sys
+
 QUARTER = 500
 BAR = 2000
 C_MIDI_OFFSET = 60
@@ -14,8 +18,6 @@ def group_to_measures(rhythm, bar_length):
             in_bar = 0
         acc += 1
     return measures
-
-
 
 def to_score(rhythm, stored):
     s = stream.Score()
@@ -37,7 +39,25 @@ def to_score(rhythm, stored):
     s.append(part)
     return s
 
-
-def save(rhythm, stored):
+def export(rhythm, stored):
     the_score = to_score(rhythm, stored)
     the_score.write('musicxml', fp='stored_notes.musicxml')
+
+
+def save(rhythm, stored):
+    save_dict = {'rhythm': rhythm, 'stored': stored}
+    filename = 'save.mldy'
+    file_path = os.path.join(os.path.dirname(__file__), filename)
+    with (open(file_path, "w") as file):
+        to_save = json.dumps(save_dict, indent=4)
+        file.write(to_save)
+        file.close()
+    return None
+
+def load():
+    filename = 'save.mldy'
+    file_path = os.path.join(os.path.dirname(__file__), filename)
+    load_dict = json.load(open(file_path))
+    rhythm = load_dict.get('rhythm', [])
+    stored = load_dict.get('stored', [])
+    return rhythm, stored
