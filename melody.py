@@ -3,15 +3,14 @@ import os
 import sys
 # from tkinter import filedialog
 import tkinter as tk
+from tkinter import filedialog
 from colorsys import rgb_to_yiq
 
 from pygame import freetype, SurfaceType
 from pygame._sdl2.video import Window
 import player
-from pathlib import Path
+import io_interface
 
-# from geopy.geocoders import Nominatim
-# from PIL.ExifTags import GPSTAGS
 
 win = tk.Tk()
 win.withdraw()
@@ -26,14 +25,16 @@ from pygame.locals import (
     K_SPACE,
     K_BACKSPACE,
 )
+MLDY_EXT = '.mldy'
 STEP_COLOUR = (200, 150, 120)
 SCROLL_COLOUR = (0, 255, 240)
 SCROLL_PLAYING = (255, 100, 0)
 BLACKISH = (80, 90, 70)
 
 file_list = []
+pressed_list = []
+stored = []
 
-PRIV = 20. # Fraction of a degree lat/long we will obscure, for privacy. 20 gives ~5km lat
 WIDTH, HEIGHT = 1200, 900
 SMALL_WIDTH, SMALL_HEIGHT = (WIDTH - 200), (HEIGHT - 40)
 screen = pg.display.set_mode((WIDTH, HEIGHT))#, pg.FULLSCREEN | pg.SCALED)
@@ -70,9 +71,37 @@ def display(screen, rhythm, stored, index):
         i += 1
         x += length
 
+def prep_for_tk_modal():
+    pg.event.set_blocked(pg.KEYDOWN)
+    # pg.event.set_blocked(KEYUP)
 
+def finished_with_tk_modal():
+    pg.event.set_allowed(pg.KEYDOWN)
+    # pg.event.set_allowed(KEYUP)
+
+def load_file(win, window):
+    global rhythm
+    global stored
+    prep_for_tk_modal()
+    filenames = filedialog.askopenfilenames(title="load melody file",
+                                            filetypes=(("load melody file", "*.mldy"),
+                                                       ("all files", "*.*")))
+    if (filenames == None):
+        finished_with_tk_modal()
+        return
+    if len(filenames) > 0:
+        print(f'len(filenames) and os.path.splitext(filenames[0]) = {os.path.splitext(filenames[0])}')
+    if len(filenames) == 1:
+        print(f'filenames[0] is {filenames[0]}')
+        if os.path.splitext(filenames[0])[1] == MLDY_EXT:
+            rhythm, stored = io_interface.load(filenames[0], win, window)
+            finished_with_tk_modal()
+            return
+    finished_with_tk_modal()
 
 def main():
+    win = tk.Tk()
+    win.withdraw()
     pg.init()
     running = True
     paused = False
@@ -92,11 +121,13 @@ def main():
     # c4 = pg.mixer.Sound(PATH_TO_C1)
     pressed = None
     pressed_list = []
+    global stored
     stored = []
     index = -1
     to_play = None
     step_input = False
     #TODO: eventually selectable/editable
+    global rhythm
     rhythm = [1000, 500, 500,
               1000, 500, 500,
               750, 250, 500, 500,
@@ -158,6 +189,12 @@ def main():
                         print(f'Deleted, len(stored) = {len(stored)}')
                 elif event.key == K_SPACE:
                     step_input = not step_input
+                elif event.unicode == 'X':
+                    io_interface.export(rhythm, stored)
+                elif event.unicode == 'S':
+                    io_interface.save(rhythm, stored)
+                elif event.unicode == 'L':
+                    load_file(window, win)
             elif event.type == ADVANCE_EVENT:
                 if -1 < index < len(stored):
                     print(f'In Advance: {stored[index]}, from index: {index}')
