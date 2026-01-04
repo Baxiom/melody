@@ -134,6 +134,21 @@ def load_file(win, window):
             return
     finished_with_tk_modal()
 
+
+def split_note(sel_index, ratio=(1,1)):
+    global rhythm
+    global stored
+    print (f'sel_index = {sel_index}, ratio = {ratio}')
+    if sel_index < len(rhythm):  #Easy case - Make it an edit of the rhythm as is
+        length1 = int(rhythm[sel_index] * (ratio[0]/(ratio[0]+ratio[1])))
+        length2 = int(rhythm[sel_index] * (ratio[1] / (ratio[0] + ratio[1])))
+        rhythm = rhythm[:sel_index] + [length1, length2] + rhythm[sel_index+1:]
+        for i in range(1 + (len(stored) - sel_index - 1) // (len(rhythm) - 1)):
+            stored_index = sel_index + i * len(rhythm)
+            # print(f'stored_index = {stored_index}, i = {i}, (len(stored) - sel_index - 1) = {(len(stored) - sel_index - 1)}, len(rhythm) = {len(rhythm)}')
+            stored = stored[:stored_index] + [stored[stored_index]] + stored[stored_index:]
+
+
 def main():
     win = tk.Tk()
     win.withdraw()
@@ -181,9 +196,9 @@ def main():
                 if event.touch:
                     continue
                 pos = event.pos
-                if pos[1] > 0:
+                if pos[1] > NOTE_HEIGHT:
                     # print(f'pos {pos}, pos[0] = {pos[0]}, pos[1] = {pos[1]}')
-                    stave_number = pos[1] // (NOTE_HEIGHT * STAVE_HEIGHT)
+                    stave_number = (pos[1] - NOTE_HEIGHT)  // (NOTE_HEIGHT * STAVE_HEIGHT)
                     if stave_number < len(lines):
                         selected_note_index = bisect.bisect_right(lines[stave_number], pos[0])
                         if selected_note_index < len(lines[stave_number]):
@@ -260,7 +275,19 @@ def main():
                     io_interface.export(rhythm, stored)
                 elif event.unicode == 'S':
                     io_interface.save(rhythm, stored)
-                elif event.unicode == 'L':
+                elif event.unicode == '2': #Split in half (the default)
+                    if step_input and sel_index is not None:
+                        split_note(sel_index)
+                        lines = make_times(rhythm, stored)
+                elif event.unicode == '3':  #Split to dotted triplet
+                    if step_input and sel_index is not None:
+                        split_note(sel_index, ratio=(2,1))
+                        lines = make_times(rhythm, stored)
+                elif event.unicode == '4': #Split to dotted rhythm
+                    if step_input and sel_index is not None:
+                        split_note(sel_index, ratio=(3,1))
+                        lines = make_times(rhythm, stored)
+                elif event.unicode == 'L':  #For cutting the note
                     load_file(window, win)
                     lines = make_times(rhythm, stored)
             elif event.type == ADVANCE_EVENT:
