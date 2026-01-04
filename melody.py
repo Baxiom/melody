@@ -275,9 +275,17 @@ def main():
                     io_interface.export(rhythm, stored)
                 elif event.unicode == 'S':
                     io_interface.save(rhythm, stored)
-                elif event.unicode == 'C':
+                elif event.unicode == '2': #Split in half (the default)
                     if step_input and sel_index is not None:
                         split_note(sel_index)
+                        lines = make_times(rhythm, stored)
+                elif event.unicode == '3':  #Split to dotted triplet
+                    if step_input and sel_index is not None:
+                        split_note(sel_index, ratio=(2,1))
+                        lines = make_times(rhythm, stored)
+                elif event.unicode == '4': #Split to dotted rhythm
+                    if step_input and sel_index is not None:
+                        split_note(sel_index, ratio=(3,1))
                         lines = make_times(rhythm, stored)
                 elif event.unicode == 'L':  #For cutting the note
                     load_file(window, win)
