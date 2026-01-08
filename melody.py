@@ -7,6 +7,8 @@ import tkinter as tk
 import bisect
 from tkinter import filedialog
 from colorsys import rgb_to_yiq
+import rhythms
+rhythm = None
 
 from pygame import freetype, SurfaceType
 from pygame._sdl2.video import Window
@@ -65,25 +67,37 @@ def reset_advance_timer(gap = 500):
     pg.time.set_timer(ADVANCE_EVENT, 0)
     pg.time.set_timer(ADVANCE_EVENT, gap)
 
-def make_times(rhythm, stored):
+def make_times(rhythm: rhythms.Rhythm, stored):
     #Currently assuming rhythm is one screen width.
     x0 = 0
     x = x0
-    line = [x0]
+    line = []
     lines = []
     for i in range(len(stored)):
-        length = rhythm[i % len(rhythm)] * WIDTH // 8000
+        # length = rhythm[i % rhythm.notes_length()] * WIDTH // 8000
+        length = rhythm.get_duration(i) * WIDTH // 8000
+        sounding = rhythm.get_sounding(i) * WIDTH // 8000
         if x + length > WIDTH:
+            print(f'Line is {line}, x is {x}, length is {length}, sounding is {sounding}, WIDTH={WIDTH}')
             lines.append(line)
             x = x0
-            line = [x0]
+            line = []
+        line.append((x, sounding))
         x += length
-        line.append(x)
     lines.append(line)
     return lines
 
 
-def display(screen, rhythm, stored, index, stave):
+def display(screen, rhythm:rhythms.Rhythm, stored, index, stave):
+    '''
+
+    :param screen:
+    :param rhythm: the rhythm structure
+    :param stored: the stored pitches of the melody
+    :param index: the index of the currenltly playing note during play back (not the selected note)
+    :param stave: a triple including the stave to highlight but also the index of the selected note
+    :return:
+    '''
     x0 = 0
     x = x0
     y = NOTE_HEIGHT * STAVE_HEIGHT
@@ -93,16 +107,20 @@ def display(screen, rhythm, stored, index, stave):
         stave_num = stave[0]
         stave_line = stave[1]
         note_index = stave[2]
-        pg.draw.rect(screen, SEL_STAVE_COLOUR, (stave_line[0], y*stave_num + NOTE_HEIGHT, stave_line[len(stave_line)-1]-stave_line[0], y))
-        pg.draw.rect(screen, SEL_NOTE_COLOUR, (stave_line[note_index-1], y*stave_num + NOTE_HEIGHT, stave_line[note_index]-stave_line[note_index-1], y))
+        # print(f'stave_line = {stave_line}, note_index = {note_index}, stave_num = {stave_num}')
+        pg.draw.rect(screen, SEL_STAVE_COLOUR, (stave_line[0][0], y*stave_num + NOTE_HEIGHT, stave_line[len(stave_line)-1][0]-stave_line[0][0]+stave_line[len(stave_line)-1][1], y))
+        # pg.draw.rect(screen, SEL_NOTE_COLOUR, (stave_line[note_index-1], y*stave_num + NOTE_HEIGHT, stave_line[note_index]-stave_line[note_index-1], y))
+        pg.draw.rect(screen, SEL_NOTE_COLOUR, (stave_line[note_index - 1][0], y * stave_num + NOTE_HEIGHT,
+                                               stave_line[note_index - 1][1], y))
     for note in stored:
-        length = rhythm[i % len(rhythm)] * WIDTH // 8000
+        length = rhythm.get_duration(i) * WIDTH // 8000
+        sounding = rhythm.get_sounding(i) * WIDTH // 8000
         if x + length > WIDTH:
             pg.draw.line(screen, SCROLL_COLOUR, (0,y + NOTE_HEIGHT), (x + WIDTH, y + NOTE_HEIGHT), 2)
             x = x0
             y += NOTE_HEIGHT * STAVE_HEIGHT
-        pg.draw.rect(screen, SCROLL_PLAYING if i == index_test else SCROLL_COLOUR, (x, y - NOTE_HEIGHT * note, length, NOTE_HEIGHT))
-        pg.draw.rect(screen, BLACKISH, (x, y - NOTE_HEIGHT * note, length, NOTE_HEIGHT), 1)
+        pg.draw.rect(screen, SCROLL_PLAYING if i == index_test else SCROLL_COLOUR, (x, y - NOTE_HEIGHT * note, sounding, NOTE_HEIGHT))
+        pg.draw.rect(screen, BLACKISH, (x, y - NOTE_HEIGHT * note, sounding, NOTE_HEIGHT), 1)
         i += 1
         x += length
 
@@ -129,22 +147,21 @@ def load_file(win, window):
     if len(filenames) == 1:
         print(f'filenames[0] is {filenames[0]}')
         if os.path.splitext(filenames[0])[1] == MLDY_EXT:
-            rhythm, stored = io_interface.load(filenames[0], win, window)
+            rhythm_in, stored = io_interface.load(filenames[0], win, window)
+            rhythm = rhythms.Rhythm(rhythm_in)
             finished_with_tk_modal()
             return
     finished_with_tk_modal()
 
 
 def split_note(sel_index, ratio=(1,1)):
-    global rhythm
+    global rhythm  #:rhythms.Rhythm
     global stored
     print (f'sel_index = {sel_index}, ratio = {ratio}')
-    if sel_index < len(rhythm):  #Easy case - Make it an edit of the rhythm as is
-        length1 = int(rhythm[sel_index] * (ratio[0]/(ratio[0]+ratio[1])))
-        length2 = int(rhythm[sel_index] * (ratio[1] / (ratio[0] + ratio[1])))
-        rhythm = rhythm[:sel_index] + [length1, length2] + rhythm[sel_index+1:]
-        for i in range(1 + (len(stored) - sel_index - 1) // (len(rhythm) - 1)):
-            stored_index = sel_index + i * len(rhythm)
+    if sel_index < rhythm.notes_length():  #Easy case - Make it an edit of the rhythm as is
+        rhythm.split(sel_index, ratio=ratio)
+        for i in range(1 + (len(stored) - sel_index - 1) // (rhythm.notes_length() - 1)):
+            stored_index = sel_index + i * rhythm.notes_length()
             # print(f'stored_index = {stored_index}, i = {i}, (len(stored) - sel_index - 1) = {(len(stored) - sel_index - 1)}, len(rhythm) = {len(rhythm)}')
             stored = stored[:stored_index] + [stored[stored_index]] + stored[stored_index:]
 
@@ -182,11 +199,11 @@ def main():
     step_input = False
     #TODO: eventually selectable/editable
     global rhythm
-    rhythm = [1000, 500, 500,
+    rhythm = rhythms.Rhythm([1000, 500, 500,
               1000, 500, 500,
               750, 250, 500, 500,
               1000, 1000
-              ]
+              ])
     while running:
         window = Window.from_display_module()
         for event in pg.event.get():
@@ -200,10 +217,10 @@ def main():
                     # print(f'pos {pos}, pos[0] = {pos[0]}, pos[1] = {pos[1]}')
                     stave_number = (pos[1] - NOTE_HEIGHT)  // (NOTE_HEIGHT * STAVE_HEIGHT)
                     if stave_number < len(lines):
-                        selected_note_index = bisect.bisect_right(lines[stave_number], pos[0])
-                        if selected_note_index < len(lines[stave_number]):
+                        selected_note_index = bisect.bisect_right([0]+[l[0]+l[1] for l in lines[stave_number]], pos[0])
+                        if selected_note_index <= len(lines[stave_number]):
                             selected_stave = (stave_number, lines[stave_number], selected_note_index)
-                            sel_index = max(0, selected_note_index - 1) + sum([len(l) for l in lines[0:stave_number]]) - stave_number
+                            sel_index = max(0, selected_note_index - 1 + sum([len(l) for l in lines[0:stave_number]])) #- stave_number
                             # print(f'selected_note_index = {selected_note_index}, lines[stave_number] = {lines[stave_number]}, sel_index = {sel_index}')
                             play = True
                         else:
@@ -287,6 +304,10 @@ def main():
                     if step_input and sel_index is not None:
                         split_note(sel_index, ratio=(3,1))
                         lines = make_times(rhythm, stored)
+                elif event.unicode == 'z':  # Make the note a rest.
+                    if step_input and sel_index is not None:
+                        split_note(sel_index, ratio=(3,1))
+                        lines = make_times(rhythm, stored)
                 elif event.unicode == 'L':  #For cutting the note
                     load_file(window, win)
                     lines = make_times(rhythm, stored)
@@ -294,13 +315,14 @@ def main():
                 if -1 < index < len(stored):
                     # print(f'In Advance: {stored[index]}, from index: {index}')
                     to_play = stored[index]
+                    to_play_length = rhythm.get_duration(index)
                     index += 1
                     if index >= len(stored):
                         index = -1
                         # print(f'Advance, index reset to -1')
                     else:
-                        # print(f'Advance, with index = {index}, reset timer')
-                        reset_advance_timer(rhythm[(index-1) % len(rhythm)])
+                        print(f'Advance, with index = {index-1}, reset timer: {rhythm.get_duration(index-1)}')
+                        reset_advance_timer(int(rhythm.get_duration(index-1)))
                 else:
                     to_play = None
             else:
@@ -317,9 +339,10 @@ def main():
         if play:
             if sel_index is not None:
                 player.play(stored[sel_index])
+                print(f'Display selected_stave: {selected_stave}. ')
                 play = False
         if (to_play is not None):
-            player.play(to_play)
+            player.play(to_play, maxtime=to_play_length)
             to_play = None
         if len(pressed_list) > 0:
             for p in pressed_list:

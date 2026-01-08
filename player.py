@@ -16,9 +16,10 @@ def init(notes):
         sound = pg.mixer.Sound(notefile)
         sounds.append(sound)
 
-def play(pressed):
+def play(pressed, maxtime=2000):
     if pressed < len(sounds):
-        sounds[pressed].play()
+        print(f'Play {pressed} notes, maxtime: {maxtime}')
+        sounds[pressed].play(maxtime=maxtime)
 
 
 def play_sequence(stored):
