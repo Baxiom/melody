@@ -147,8 +147,8 @@ def load_file(win, window):
     if len(filenames) == 1:
         print(f'filenames[0] is {filenames[0]}')
         if os.path.splitext(filenames[0])[1] == MLDY_EXT:
-            rhythm_in, stored = io_interface.load(filenames[0], win, window)
-            rhythm = rhythms.Rhythm(rhythm_in)
+            rhythm, stored = io_interface.load(filenames[0], win, window)
+            # rhythm = rhythms.Rhythm(rhythm_in)
             finished_with_tk_modal()
             return
     finished_with_tk_modal()
